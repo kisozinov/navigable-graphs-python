@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import time
 import random
-from math import log2
+from math import log2, log10
 from heapq import heapify, heappop, heappush, heapreplace, nlargest, nsmallest
 
 def l2_distance(a, b):
@@ -58,6 +58,19 @@ class HNSW:
         self._graphs = []
         self._enter_point = None
 
+        self._median_points = []
+
+    # def calculate_median_points(self):
+    #     if len(self.data) == 0:
+    #         return
+        
+    #     sample_data = np.array(random.sample(self.data, min(len(self.data), 1000)))
+    #     self._median_points = np.median(sample_data, axis=0).reshape(-1, len(sample_data[0]))
+
+    # def find_closest_median(self, elem):
+    #     distances = [self.distance_func(elem, median_point) for median_point in self._median_points]
+    #     return min(distances)
+
     def add(self, elem, ef=None):
 
         if ef is None:
@@ -67,9 +80,14 @@ class HNSW:
         data = self.data
         graphs = self._graphs
         point = self._enter_point
+        # print("enter point: ", self._enter_point)
         m = self._m
 
         # level at which the element will be inserted
+        # closest_median_dist = self.find_closest_median(elem)
+        # if closest_median_dist < np.median([self.find_closest_median(p) for p in data]):
+            # level = int(-log2(random.random()) * self._level_mult) + 2
+        # else:
         level = int(-log2(random.random()) * self._level_mult) + 1
         # print("level: %d" % level)
 
@@ -112,13 +130,42 @@ class HNSW:
             # for all new levels, we create an empty graph
             graphs.append({idx: []})
             self._enter_point = idx
-            
+
+    def calculate_median_points(self, data, num_medians=1):
+        median_points = np.median(data, axis=0)
+
+        if num_medians > 1:
+            medians = []
+            for _ in range(num_medians):
+                random_point = median_points + np.random.normal(0, 0.01, size=median_points.shape)
+                medians.append(random_point)
+            return np.array(medians)
+        return np.array([median_points])
+        # return median_points
+        
+    def find_closest_indices(self, data, points):
+        closest_indices = []
+        for point in points:
+            distances = np.linalg.norm(data - point, axis=1)
+            closest_index = int(np.argmin(distances))
+            closest_indices.append(closest_index)
+        return closest_indices
+    
     # can be used for search after jump        
     def search(self, q, k=1, ef=10, level=0, return_observed=True):
         graphs = self._graphs
         point = self._enter_point
+        median_points = self.calculate_median_points(self.data, num_medians=1)
+        median_points_indices = self.find_closest_indices(self.data, median_points)
+        median_points = median_points_indices
+        
+        # print("start point", [point])
         for layer in reversed(graphs[level:]):
+            # print(len(graphs))
+            # print(len([l for l in layer]))
+            # print("point:", point)
             point, dist = self.beam_search(layer, q=q, k=1, eps=[point], ef=1)[0]
+
 
         return self.beam_search(graph=graphs[level], q=q, k=k, eps=[point], ef=ef, return_observed=return_observed)
 
@@ -136,7 +183,7 @@ class HNSW:
         candidates = []
         visited = set()  # set of vertex used for extending the set of candidates
         observed = dict() # dict: vertex_id -> float – set of vertexes for which the distance were calculated
-
+        # print(len(graph))
         if ax:
             ax.scatter(x=q[0], y=q[1], s=marker_size, color='red', marker='^')
             ax.annotate('query', (q[0], q[1]))
@@ -150,7 +197,7 @@ class HNSW:
         while candidates:
             # Get the closest vertex (furthest in the max-heap sense)
             dist, current_vertex = heappop(candidates)
-
+            # print(current_vertex)
             if ax:
                 ax.scatter(x=self.data[current_vertex][0], y=self.data[current_vertex][1], s=marker_size, color='red')
                 ax.annotate( len(visited), self.data[current_vertex] )
