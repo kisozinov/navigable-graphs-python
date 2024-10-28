@@ -1,8 +1,12 @@
 # Navigable Graphs Python
 Python based research tool for studying navigable graphs for nearest neighbour search
 
-### Results
+## Results
+### SIFT 10k
 !["sift10k"](sift10k.png)
+
+### SIFT 1m
+!["sift1m"](sift1m.png)
 
 Using the SIFT dataset:
 ```
