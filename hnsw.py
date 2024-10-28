@@ -54,7 +54,7 @@ class HNSW:
         self._ef = ef
         self._ef_construction = ef_construction
         self._m0 = 2 * m if m0 is None else m0
-        self._level_mult = 1 / log2(m)
+        self._level_mult = 1 / log10(m)
         self._graphs = []
         self._enter_point = None
 
